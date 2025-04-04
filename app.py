@@ -18,7 +18,9 @@ tab1, tab2 = st.tabs(["Single Ticker Analysis", "Aggregated Exposure View"])
 
 # First tab (existing functionality)
 with tab1:
-# Sidebar navigation
+    # [Previous code for single ticker analysis goes here]
+
+  # Sidebar navigation
 with st.sidebar:
     st.header("Ticker Selection")
     selected_tickers = []
