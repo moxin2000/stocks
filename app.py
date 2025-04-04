@@ -51,133 +51,221 @@ else:
             current_date = datetime.now(pytz.timezone('US/Eastern')).strftime('%Y-%m-%d')
             
             # Header section
-            st.header(f"{ticker} - ${current_price:.2f} as of {current_time} {current_date}")
+            st.markdown(f"**{ticker} - ${current_price:.2f} as of {current_time} {current_date}**")
             
             # Expiration date selection
             exp_dates = stock.options
             selected_exp = st.selectbox(f"Select expiration date for {ticker}", exp_dates)
             
-            # Generate mock options data (replace with real options chain)
-            strikes = np.linspace(current_price * 0.7, current_price * 1.3, 20)
-            calls = np.random.randint(100, 1000, size=20)
-            puts = np.random.randint(100, 1000, size=20)
+            # Timeframe selection for price chart
+            timeframes = ['1d', '5d', '1mo', '3mo', '6mo', '1y', '2y', '5y']
+            selected_timeframe = st.selectbox("Select timeframe for price chart", timeframes, index=2)
             
-            # Calculate mock greeks (replace with real calculations)
-            delta = np.linspace(-1, 1, 20)
-            gamma = np.abs(np.random.normal(0.5, 0.1, 20))
-            vanna = np.random.normal(0, 0.2, 20)
-            charm = np.random.normal(0, 0.05, 20)
+            # Get historical data for selected timeframe
+            price_data = stock.history(period=selected_timeframe)
             
-            # Create tabs for different metrics
-            tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
-                "Delta Exposure", "Gamma Exposure", "Vanna Exposure", 
-                "Charm Exposure", "Open Interest", "Traded Volume"
-            ])
+            # Create two columns for charts
+            col1, col2 = st.columns([2, 1])
             
-            # Common plot style
-            def create_bar_plot(x, y, title, y_title, current_price):
-                fig = go.Figure()
-                fig.add_trace(go.Bar(x=x, y=y, marker_color='rgba(55, 128, 191, 0.7)'))
-                fig.add_vline(x=current_price, line_dash="dot", line_color="red", line_width=2)
-                fig.update_layout(
-                    title=f"{title} for {ticker} - {current_date} {current_time}",
-                    xaxis_title="Strike Price",
-                    yaxis_title=y_title,
-                    showlegend=False
+            with col1:
+                # Price chart
+                fig_price = go.Figure()
+                fig_price.add_trace(go.Scatter(
+                    x=price_data.index, 
+                    y=price_data['Close'],
+                    line=dict(color='royalblue', width=2),
+                    name='Price'
+                ))
+                fig_price.update_layout(
+                    title=f"{ticker} Price Chart",
+                    xaxis_title="Date",
+                    yaxis_title="Price",
+                    hovermode="x unified"
                 )
-                return fig
+                st.plotly_chart(fig_price, use_container_width=True)
             
-            with tab1:
-                st.plotly_chart(create_bar_plot(
-                    strikes, delta, "Delta Exposure", "Delta", current_price
-                ), use_container_width=True)
+            with col2:
+                # Metric selection for horizontal bar chart
+                metrics = ['Open Interest', 'Traded Volume', 'Delta', 'Gamma', 'Vanna', 'Charm']
+                selected_metric = st.selectbox("Select metric to display", metrics)
                 
-            with tab2:
-                st.plotly_chart(create_bar_plot(
-                    strikes, gamma, "Gamma Exposure", "Gamma per 1% move", current_price
-                ), use_container_width=True)
+                # Generate mock options data (replace with real options chain)
+                strikes = np.linspace(current_price * 0.7, current_price * 1.3, 20)
+                calls = np.random.randint(100, 1000, size=20)
+                puts = np.random.randint(100, 1000, size=20)
                 
-            with tab3:
-                st.plotly_chart(create_bar_plot(
-                    strikes, vanna, "Vanna Exposure", "Vanna per 1% IV move", current_price
-                ), use_container_width=True)
+                # Calculate mock greeks (replace with real calculations)
+                delta = np.linspace(-1, 1, 20)
+                gamma = np.random.normal(0, 0.2, 20)
+                vanna = np.random.normal(0, 0.1, 20)
+                charm = np.random.normal(0, 0.05, 20)
                 
-            with tab4:
-                st.plotly_chart(create_bar_plot(
-                    strikes, charm, "Charm Exposure", "Charm per day till expiry", current_price
-                ), use_container_width=True)
+                # Create horizontal bar chart based on selected metric
+                fig_bar = go.Figure()
                 
-            with tab5:
-                fig = go.Figure()
-                fig.add_trace(go.Bar(x=strikes, y=calls, name='Calls', marker_color='rgba(55, 128, 191, 0.7)'))
-                fig.add_trace(go.Bar(x=strikes, y=puts, name='Puts', marker_color='rgba(255, 128, 191, 0.7)'))
-                fig.add_vline(x=current_price, line_dash="dot", line_color="black", line_width=2)
-                fig.update_layout(
-                    title=f"Open Interest for {ticker} - {current_date} {current_time}",
-                    xaxis_title="Strike Price",
-                    yaxis_title="Open Interest",
-                    barmode='group'
+                if selected_metric == 'Open Interest':
+                    fig_bar.add_trace(go.Bar(
+                        y=strikes,
+                        x=calls,
+                        name='Calls',
+                        orientation='h',
+                        marker_color='rgba(55, 128, 191, 0.7)'
+                    ))
+                    fig_bar.add_trace(go.Bar(
+                        y=strikes,
+                        x=-puts,
+                        name='Puts',
+                        orientation='h',
+                        marker_color='rgba(255, 128, 191, 0.7)'
+                    ))
+                    fig_bar.update_layout(barmode='relative')
+                    
+                elif selected_metric == 'Traded Volume':
+                    fig_bar.add_trace(go.Bar(
+                        y=strikes,
+                        x=calls*0.3,
+                        name='Calls Volume',
+                        orientation='h',
+                        marker_color='rgba(55, 128, 191, 0.7)'
+                    ))
+                    fig_bar.add_trace(go.Bar(
+                        y=strikes,
+                        x=-puts*0.3,
+                        name='Puts Volume',
+                        orientation='h',
+                        marker_color='rgba(255, 128, 191, 0.7)'
+                    ))
+                    fig_bar.update_layout(barmode='relative')
+                    
+                elif selected_metric == 'Delta':
+                    fig_bar.add_trace(go.Bar(
+                        y=strikes,
+                        x=delta,
+                        orientation='h',
+                        marker_color=np.where(delta > 0, 'rgba(55, 128, 191, 0.7)', 'rgba(255, 128, 191, 0.7)')
+                    ))
+                    
+                elif selected_metric == 'Gamma':
+                    fig_bar.add_trace(go.Bar(
+                        y=strikes,
+                        x=gamma,
+                        orientation='h',
+                        marker_color=np.where(gamma > 0, 'rgba(55, 128, 191, 0.7)', 'rgba(255, 128, 191, 0.7)')
+                    ))
+                    
+                elif selected_metric == 'Vanna':
+                    fig_bar.add_trace(go.Bar(
+                        y=strikes,
+                        x=vanna,
+                        orientation='h',
+                        marker_color=np.where(vanna > 0, 'rgba(55, 128, 191, 0.7)', 'rgba(255, 128, 191, 0.7)')
+                    ))
+                    
+                elif selected_metric == 'Charm':
+                    fig_bar.add_trace(go.Bar(
+                        y=strikes,
+                        x=charm,
+                        orientation='h',
+                        marker_color=np.where(charm > 0, 'rgba(55, 128, 191, 0.7)', 'rgba(255, 128, 191, 0.7)')
+                    ))
+                
+                # Add current price line
+                fig_bar.add_vline(x=0, line_width=0.5, line_color="gray")
+                fig_bar.add_hline(y=current_price, line_dash="dot", line_color="black", line_width=2)
+                
+                fig_bar.update_layout(
+                    title=f"{selected_metric} Exposure for {ticker}",
+                    yaxis_title="Strike Price",
+                    xaxis_title=selected_metric,
+                    showlegend=selected_metric in ['Open Interest', 'Traded Volume'],
+                    height=600
                 )
-                st.plotly_chart(fig, use_container_width=True)
-                
-            with tab6:
-                fig = go.Figure()
-                fig.add_trace(go.Bar(x=strikes, y=calls*0.3, name='Calls Volume', marker_color='rgba(55, 128, 191, 0.7)'))
-                fig.add_trace(go.Bar(x=strikes, y=puts*0.3, name='Puts Volume', marker_color='rgba(255, 128, 191, 0.7)'))
-                fig.add_vline(x=current_price, line_dash="dot", line_color="black", line_width=2)
-                fig.update_layout(
-                    title=f"Traded Volume for {ticker} - {current_date} {current_time}",
-                    xaxis_title="Strike Price",
-                    yaxis_title="Volume",
-                    barmode='group'
-                )
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig_bar, use_container_width=True)
             
             # Recommendation section
-            st.subheader("Trading Recommendation")
+            st.subheader("Market Maker Positioning Analysis")
             
             # Calculate days to expiration
             exp_date = datetime.strptime(selected_exp, "%Y-%m-%d")
             days_to_exp = (exp_date - datetime.now()).days
             
-            # Generate mock recommendation (replace with real analysis)
-            if days_to_exp == 0:
-                expiry_type = "0DTE"
-                recommendation = "Highly sensitive to gamma effects. Expect increased volatility near key strikes."
-            elif days_to_exp <= 7:
-                expiry_type = "Weekly"
-                recommendation = "Gamma positioning will influence short-term price action."
-            elif days_to_exp <= 30:
-                expiry_type = "Monthly"
-                recommendation = "Gamma and vanna effects important for medium-term direction."
-            else:
-                expiry_type = "LEAPS"
-                recommendation = "Charm and vanna will have more impact than gamma."
-            
-            # Create recommendation box
+            # Generate recommendation based on expiration type
             with st.container():
                 st.markdown(f"""
-                **{ticker} {expiry_type} Options Analysis ({selected_exp})**
+                **{ticker} Options Analysis for {selected_exp} ({days_to_exp} days to expiry)**
                 
-                - **Current Price:** ${current_price:.2f}
-                - **Expected Range:** ${current_price*0.97:.2f} to ${current_price*1.03:.2f}
-                - **Key Levels:** 
-                    - Support: ${current_price*0.98:.2f} (Puts heavy)
-                    - Resistance: ${current_price*1.02:.2f} (Calls heavy)
-                - **Bias:** {'Bullish' if np.sum(delta) > 0 else 'Bearish'}
+                ### Market Maker Positioning:
+                - **Current Spot Price:** ${current_price:.2f}
+                - **Gamma Exposure:** {'Positive' if np.sum(gamma) > 0 else 'Negative'} (${abs(np.sum(gamma)):.2f} per 1% move)
+                - **Delta Exposure:** {'Long' if np.sum(delta) > 0 else 'Short'} ({abs(np.sum(delta)):.2f} contracts)
+                - **Key Strike Levels:** 
+                    - Gamma Flip: ${current_price * (1 + np.mean(gamma)):.2f}
+                    - Max Pain: ${strikes[np.argmin(np.abs(delta))]:.2f}
                 
-                **Recommendation:**
-                {recommendation}
-                
-                **Strategy Suggestion:**
-                - Consider {'call spreads' if np.sum(delta) > 0 else 'put spreads'} for directional plays
-                - Iron condors may work well given current gamma positioning
-                - Key strikes to watch: ${current_price*0.98:.2f} and ${current_price*1.02:.2f}
-                
-                **News/Adjustments:**
-                - Monitor earnings announcements or macroeconomic events
-                - Watch for large block trades that could change gamma exposure
+                ### Expected Moves by Expiry Type:
                 """)
+                
+                # 0DTE Analysis
+                if days_to_exp == 0:
+                    st.markdown("""
+                    **0DTE Positioning:**
+                    - Market makers will aggressively hedge gamma exposure
+                    - Expect pinning behavior near high open interest strikes
+                    - Potential for sharp moves if price breaks through gamma walls
+                    - Key levels: ${0:.2f} (support), ${0:.2f} (resistance)
+                    """.format(
+                        current_price * 0.99,
+                        current_price * 1.01
+                    ))
+                
+                # Weekly Analysis
+                elif days_to_exp <= 7:
+                    st.markdown("""
+                    **Weekly Positioning:**
+                    - Gamma exposure will dominate price action
+                    - Market makers will adjust delta hedges more frequently
+                    - Expect mean-reversion toward high open interest strikes
+                    - Key levels: ${0:.2f} (support), ${1:.2f} (resistance)
+                    """.format(
+                        current_price * 0.97,
+                        current_price * 1.03
+                    ))
+                
+                # Monthly Analysis
+                elif days_to_exp <= 30:
+                    st.markdown("""
+                    **Monthly Positioning:**
+                    - Vanna and Charm effects become more significant
+                    - Market makers will adjust for volatility changes
+                    - Expect gradual moves toward max pain
+                    - Key levels: ${0:.2f} (support), ${1:.2f} (resistance)
+                    """.format(
+                        current_price * 0.95,
+                        current_price * 1.05
+                    ))
+                
+                # LEAPS Analysis
+                else:
+                    st.markdown("""
+                    **LEAPS Positioning:**
+                    - Delta hedging is primary concern for market makers
+                    - Expect more gradual adjustments to positions
+                    - Volatility surface changes will impact pricing
+                    - Key levels: ${0:.2f} (support), ${1:.2f} (resistance)
+                    """.format(
+                        current_price * 0.90,
+                        current_price * 1.10
+                    ))
+                
+                st.markdown("""
+                **Trading Recommendation:**
+                - Monitor gamma exposure changes near key levels
+                - Watch for delta hedging flows at ${0:.2f} and ${1:.2f}
+                - Consider {'call skew' if np.mean(delta) > 0 else 'put skew'} strategies
+                """.format(
+                    current_price * 0.98,
+                    current_price * 1.02
+                ))
                 
         except Exception as e:
             st.error(f"Error processing {ticker}: {str(e)}")
